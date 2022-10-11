@@ -89,7 +89,7 @@ def check_text_input_length(text_input: str, max_bits: int):
 
     if text_input_length > max_bits:
         print('Text is too big')
-        exit(2)
+        exit(3)
 
 
 def convert_text(text: str) -> str:
@@ -108,13 +108,20 @@ def get_header():
 
 def main():
     text_input = input('What text do you want to encode?\n')
-    header = get_header()
-    image = Image.open('flower.jpeg')
+    file_input = input('In what file do you want to encode it?\n')
+
+    try:
+        image = Image.open(file_input)
+    except FileNotFoundError:
+        print('File does not exists\n')
+        exit(2)
+
+    file_output = input('What should be the output file name?(without extension)\n')
     max_bits = image.width * image.height * 3
     check_text_input_length(text_input, max_bits)
     text_input_binary = convert_text(text_input)
     changed_image = encode_text(image, text_input_binary)
-    changed_image.save("changed.jpeg")
+    changed_image.save(file_output+".jpeg")
 
 
 if __name__ == '__main__':

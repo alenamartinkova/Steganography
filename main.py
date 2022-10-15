@@ -1,4 +1,6 @@
 from PIL import Image
+from os.path import exists
+from os import stat
 
 
 def change_bit(text: str, index: int, val: int) -> int:
@@ -78,20 +80,6 @@ def detect_steganography():
     pass
 
 
-def check_text_input_length(text_input: str, max_bits: int):
-    """
-    Function that checks if text input length can be encoded to the picture
-    :param text_input: string that user wants to encode
-    :param max_bits: size of image in bits
-    :return:
-    """
-    text_input_length = len(text_input) * 8
-
-    if text_input_length > max_bits:
-        print('Text is too big')
-        exit(3)
-
-
 def convert_text(text: str) -> str:
     """
     Converts text to string of bits
@@ -102,26 +90,85 @@ def convert_text(text: str) -> str:
     return str(res)
 
 
+# !! TODO definition of header
 def get_header():
     return ""
 
 
-def main():
-    text_input = input('What text do you want to encode?\n')
-    file_input = input('In what file do you want to encode it?\n')
+def is_image_big_enough(file_size: int, image_size: int) -> bool:
+    """
+    Function that checks if file/text size is bigger than image available size
+    :param file_size:
+    :param image_size:
+    :return: bool
+    """
+    if file_size > image_size:
+        print('Text is too big')
+        return False
 
+    return True
+
+
+def validate_and_get_size(u_input: str) -> int:
+    """
+    File that validates user input and returns it size in bits
+    :param u_input: user input
+    :return: int size in bits
+    """
+    size = 0
+    # if it is file (not checking png for now)
+    if '.jpg' in u_input or '.jpeg' in u_input or '.txt' in u_input:
+        if exists(u_input):
+            is_file = True
+            file_stats = stat(u_input)
+            # get file size in bits
+            size = file_stats.st_size * 8
+        else:
+            print('File which you want to encode does not exist.\n')
+            exit(2)
+    else:
+        # get text input size in bits
+        size = len(u_input) * 8
+
+    return size
+
+
+def main():
+    is_file = False
+    # get user input
+    user_input = input('What do you want to encode?\n')
+
+    # check if it is file or string, validate if exists, get size in bits
+    size_in_bits = validate_and_get_size(user_input)
+
+    # get image to encode in name
+    image_to_encode_in = input('In what file do you want to encode it?\n')
+
+    # try to open image
     try:
-        image = Image.open(file_input)
+        image = Image.open(image_to_encode_in)
     except FileNotFoundError:
-        print('File does not exists\n')
+        print('File in which you want to encode does not exist.\n')
         exit(2)
 
-    file_output = input('What should be the output file name?(without extension)\n')
+    # image max bits to encode in
+    # not checking png for now ( * 4 )
     max_bits = image.width * image.height * 3
-    check_text_input_length(text_input, max_bits)
-    text_input_binary = convert_text(text_input)
-    changed_image = encode_text(image, text_input_binary)
-    changed_image.save(file_output+".jpeg")
+
+    # check if image is big enough to encode data in it
+    if is_image_big_enough(size_in_bits, max_bits):
+        if is_file:
+            exit()
+        else:
+            file_output = input('What should be the output file name?(without extension)\n')
+            text_input_binary = convert_text(user_input)
+            changed_image = encode_text(image, text_input_binary)
+    else:
+        pass
+        # suggest making image bigger
+
+    # save changed image
+    changed_image.save(file_output + '.png')
 
 
 if __name__ == '__main__':

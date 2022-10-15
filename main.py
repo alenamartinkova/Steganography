@@ -1,17 +1,17 @@
 from PIL import Image
 from os.path import exists
 from os import stat
+import numpy
 
 
-def change_bit(text: str, index: int, val: int) -> int:
+def change_bit(bit: int, val: int) -> int:
     """
     Function that changes last bit in r,g or b value
-    :param text: string to be encoded
-    :param index: index in text to be checked
+    :param bit: int to be encoded
     :param val: int value of r,g or b
     :return: edited value of r,g or b
     """
-    if text[index] == "0":
+    if bit == 0:
         val = val & ~1
     else:
         val = val | 1
@@ -26,46 +26,68 @@ def encode_text(input_image: Image, text: str) -> Image:
     :param text: text to be encoded - already transformed to bites
     :return: Image
     """
-    changed = 0
+    return encode_loop(input_image, text)
 
+
+def encode_file(input_image: Image, file_name: str) -> Image:
+    """
+    Function that encodes file to image
+    :param input_image: input_image in which the file is encoded
+    :param file_name: name of file to be encoded
+    :return: Image
+    """
+    f_bytes = numpy.fromfile(file_name, dtype="uint8")
+    f_bits = numpy.unpackbits(f_bytes)
+
+    return encode_loop(input_image, f_bits)
+
+
+def encode_loop(input_image: Image, bits_data) -> Image:
+    """
+    Function that loops through every pixel of image and puts new bits to LSB
+    :param input_image: input_image in which the data are encoded
+    :param bits_data: data of bits (either string of bits or array of bits)
+    :return: Image
+    """
+    changed = 0
     for x in range(input_image.width):
         for y in range(input_image.height):
             r, g, b = input_image.getpixel((x, y))
 
             # change r
-            r = change_bit(text, changed, r)
+            r = change_bit(int(bits_data[changed]), r)
             changed += 1
 
-            if changed >= len(text):
+            # check if there is more to change
+            if changed >= len(bits_data):
                 input_image.putpixel((x, y), (r, g, b))
                 break
 
             # change g
-            g = change_bit(text, changed, g)
+            g = change_bit(int(bits_data[changed]), g)
             changed += 1
 
-            if changed >= len(text):
+            # check if there is more to change
+            if changed >= len(bits_data):
                 input_image.putpixel((x, y), (r, g, b))
                 break
 
             # change b
-            b = change_bit(text, changed, b)
+            b = change_bit(int(bits_data[changed]), b)
             changed += 1
 
-            if changed >= len(text):
+            # check if there is more to change
+            if changed >= len(bits_data):
                 input_image.putpixel((x, y), (r, g, b))
                 break
 
             input_image.putpixel((x, y), (r, g, b))
 
-        if changed >= len(text):
+        # check if there is more to change
+        if changed >= len(bits_data):
             break
 
     return input_image
-
-
-def encode_file():
-    pass
 
 
 def decode_text():
@@ -119,7 +141,6 @@ def validate_and_get_size(u_input: str) -> int:
     # if it is file (not checking png for now)
     if '.jpg' in u_input or '.jpeg' in u_input or '.txt' in u_input:
         if exists(u_input):
-            is_file = True
             file_stats = stat(u_input)
             # get file size in bits
             size = file_stats.st_size * 8
@@ -134,7 +155,6 @@ def validate_and_get_size(u_input: str) -> int:
 
 
 def main():
-    is_file = False
     # get user input
     user_input = input('What do you want to encode?\n')
 
@@ -157,15 +177,17 @@ def main():
 
     # check if image is big enough to encode data in it
     if is_image_big_enough(size_in_bits, max_bits):
-        if is_file:
-            exit()
+        file_output = input('What should be the output file name?(without extension)\n')
+
+        if '.jpg' in user_input or '.jpeg' in user_input or '.txt' in user_input:
+            # can do this as in this point I know it exist
+            changed_image = encode_file(image, user_input)
         else:
-            file_output = input('What should be the output file name?(without extension)\n')
             text_input_binary = convert_text(user_input)
             changed_image = encode_text(image, text_input_binary)
     else:
-        pass
         # suggest making image bigger
+        exit(4)
 
     # save changed image
     changed_image.save(file_output + '.png')

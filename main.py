@@ -15,28 +15,6 @@ def change_bit(bit: int, val: int) -> int:
     return val & ~1 if bit == 0 else val | 1
 
 
-def encode_text(input_image: Image, text: str) -> Image:
-    """
-    Function that encodes text to image
-    :param input_image: input_image in which the text is encoded
-    :param text: text to be encoded - already transformed to bites
-    :return: Image
-    """
-    return encode_loop(input_image, text)
-
-
-def encode_file(input_image: Image, file_name: str) -> Image:
-    """
-    Function that encodes file to image
-    :param input_image: input_image in which the file is encoded
-    :param file_name: name of file to be encoded
-    :return: Image
-    """
-    f_bytes = numpy.fromfile(file_name, dtype="uint8")
-    f_bits = numpy.unpackbits(f_bytes)
-    return encode_loop(input_image, f_bits)
-
-
 def encode_loop(input_image: Image, bits_data) -> Image:
     """
     Function that loops through every pixel of image and puts new bits to LSB
@@ -47,36 +25,78 @@ def encode_loop(input_image: Image, bits_data) -> Image:
     changed = 0
     for x in range(input_image.width):
         for y in range(input_image.height):
-            r, g, b = input_image.getpixel((x, y))
+            # doing it so stupidly
+            if input_image.format == 'PNG':
+                r, g, b, a = input_image.getpixel((x, y))
 
-            # change r
-            r = change_bit(int(bits_data[changed]), r)
-            changed += 1
+                # change r
+                r = change_bit(int(bits_data[changed]), r)
+                changed += 1
 
-            # check if there is more to change
-            if changed >= len(bits_data):
+                # check if there is more to change
+                if changed >= len(bits_data):
+                    input_image.putpixel((x, y), (r, g, b, a))
+                    break
+
+                # change g
+                g = change_bit(int(bits_data[changed]), g)
+                changed += 1
+
+                # check if there is more to change
+                if changed >= len(bits_data):
+                    input_image.putpixel((x, y), (r, g, b, a))
+                    break
+
+                # change b
+                b = change_bit(int(bits_data[changed]), b)
+                changed += 1
+
+                # check if there is more to change
+                if changed >= len(bits_data):
+                    input_image.putpixel((x, y), (r, g, b, a))
+                    break
+
+                # change a
+                a = change_bit(int(bits_data[changed]), a)
+                changed += 1
+
+                # check if there is more to change
+                if changed >= len(bits_data):
+                    input_image.putpixel((x, y), (r, g, b, a))
+                    break
+
+                input_image.putpixel((x, y), (r, g, b, a))
+            else:
+                r, g, b = input_image.getpixel((x, y))
+
+                # change r
+                r = change_bit(int(bits_data[changed]), r)
+                changed += 1
+
+                # check if there is more to change
+                if changed >= len(bits_data):
+                    input_image.putpixel((x, y), (r, g, b))
+                    break
+
+                # change g
+                g = change_bit(int(bits_data[changed]), g)
+                changed += 1
+
+                # check if there is more to change
+                if changed >= len(bits_data):
+                    input_image.putpixel((x, y), (r, g, b))
+                    break
+
+                # change b
+                b = change_bit(int(bits_data[changed]), b)
+                changed += 1
+
+                # check if there is more to change
+                if changed >= len(bits_data):
+                    input_image.putpixel((x, y), (r, g, b))
+                    break
+
                 input_image.putpixel((x, y), (r, g, b))
-                break
-
-            # change g
-            g = change_bit(int(bits_data[changed]), g)
-            changed += 1
-
-            # check if there is more to change
-            if changed >= len(bits_data):
-                input_image.putpixel((x, y), (r, g, b))
-                break
-
-            # change b
-            b = change_bit(int(bits_data[changed]), b)
-            changed += 1
-
-            # check if there is more to change
-            if changed >= len(bits_data):
-                input_image.putpixel((x, y), (r, g, b))
-                break
-
-            input_image.putpixel((x, y), (r, g, b))
 
         # check if there is more to change
         if changed >= len(bits_data):
@@ -94,21 +114,11 @@ def encode(user_input: str, image: Image) -> Image:
     """
     if is_file(user_input):
         # can do this as in this point I know it exist
-        return encode_file(image, user_input)
+        f_bytes = numpy.fromfile(user_input, dtype="uint8")
+        f_bits = numpy.unpackbits(f_bytes)
+        return encode_loop(image, f_bits)
     else:
-        return encode_text(image, convert_text(user_input))
-
-
-def decode_text():
-    pass
-
-
-def decode_file():
-    pass
-
-
-def detect_steganography():
-    pass
+        return encode_loop(image, convert_text(user_input))
 
 
 def convert_text(text: str) -> str:
@@ -171,17 +181,7 @@ def resize_image(init_image: Image, resize_r: float) -> Image:
     )
 
 
-def is_file(inp: str) -> bool:
-    """
-    Function that checks is file condition
-    :param inp: user input string
-    :return:  bool
-    """
-    return '.jpg' in inp or '.jpeg' in inp or '.txt' in inp
-
-
-def main():
-    # get user input
+def encode_wrapper():
     user_input = input('What do you want to encode?\n')
 
     # check if it is file or string, validate if exists, get size in bits
@@ -198,8 +198,11 @@ def main():
         exit(2)
 
     # image max bits to encode in
-    # not checking png for now ( * 4 )
-    max_bits = image.width * image.height * 3
+    if image.format == 'PNG':
+        max_bits = image.width * image.height * 4
+    else:
+        max_bits = image.width * image.height * 3
+
     file_output = input('What should be the output file name?(without extension)\n')
 
     # check if image is big enough to encode data in it
@@ -219,8 +222,56 @@ def main():
         else:
             exit(4)
 
-    # save changed image
+    # save changed image - must save as png, if saving as jpeg the changed bits does not save !! why?
     changed_image.save(file_output + '.png')
+
+
+def decode_wrapper():
+    pass
+
+
+# TODO how to find out NxN to check??
+def detect_wrapper():
+    user_input = input('Write image name to detect steganography in.\n')
+
+    # try to open image
+    try:
+        image = Image.open(user_input)
+    except FileNotFoundError:
+        print('File does not exist.\n')
+        exit(2)
+
+    for x in range(image.width):
+        for y in range(image.height):
+            if image.format == 'PNG':
+                r, g, b, a = image.getpixel((x, y))
+            else:
+                r, g, b = image.getpixel((x, y))
+
+
+def is_file(inp: str) -> bool:
+    """
+    Function that checks is file condition
+    :param inp: user input string
+    :return:  bool
+    """
+    return '.jpg' in inp or '.jpeg' in inp or '.txt' in inp or '.png' in inp
+
+
+def main():
+    what_to_do = input('What do you want to do?\n'
+                       '1: Encode,\n'
+                       '2: Decode,\n'
+                       '3: Detect\n')
+    if what_to_do == "1":
+        encode_wrapper()
+    elif what_to_do == "2":
+        decode_wrapper()
+    elif what_to_do == "3":
+        detect_wrapper()
+    else:
+        print('Do not be an idiot.\n')
+        exit(5)
 
 
 if __name__ == '__main__':

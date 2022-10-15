@@ -12,12 +12,7 @@ def change_bit(bit: int, val: int) -> int:
     :param val: int value of r,g or b
     :return: edited value of r,g or b
     """
-    if bit == 0:
-        val = val & ~1
-    else:
-        val = val | 1
-
-    return val
+    return val & ~1 if bit == 0 else val | 1
 
 
 def encode_text(input_image: Image, text: str) -> Image:
@@ -39,7 +34,6 @@ def encode_file(input_image: Image, file_name: str) -> Image:
     """
     f_bytes = numpy.fromfile(file_name, dtype="uint8")
     f_bits = numpy.unpackbits(f_bytes)
-
     return encode_loop(input_image, f_bits)
 
 
@@ -102,8 +96,7 @@ def encode(user_input: str, image: Image) -> Image:
         # can do this as in this point I know it exist
         return encode_file(image, user_input)
     else:
-        text_input_binary = convert_text(user_input)
-        return encode_text(image, text_input_binary)
+        return encode_text(image, convert_text(user_input))
 
 
 def decode_text():
@@ -124,8 +117,7 @@ def convert_text(text: str) -> str:
     :param text: text to be converted
     :return: converted string
     """
-    res = ''.join(format(ord(i), '08b') for i in text)
-    return str(res)
+    return str(''.join(format(ord(i), '08b') for i in text))
 
 
 # !! TODO definition of header
@@ -140,11 +132,7 @@ def is_image_big_enough(file_size: int, image_size: int) -> bool:
     :param image_size:
     :return: bool
     """
-    if file_size > image_size:
-        print('The file/text to encode is too big. \n')
-        return False
-
-    return True
+    return file_size < image_size
 
 
 def validate_and_get_size(u_input: str) -> int:
@@ -218,6 +206,7 @@ def main():
     if is_image_big_enough(size_in_bits, max_bits):
         changed_image = encode(user_input, image)
     else:
+        print('The file/text to encode is too big. \n')
         # suggest making image bigger
         make_bigger = input('Do you want to make image to which you are encoding bigger?\n'
                             'yes/no\n')

@@ -2,6 +2,7 @@ from PIL import Image
 from os.path import exists
 from os import stat
 import numpy
+import math
 
 
 def change_bit(bit: int, val: int) -> int:
@@ -90,6 +91,21 @@ def encode_loop(input_image: Image, bits_data) -> Image:
     return input_image
 
 
+def encode(user_input: str, image: Image) -> Image:
+    """
+    Function to encode
+    :param user_input: user input string
+    :param image: Image
+    :return: Image
+    """
+    if is_file(user_input):
+        # can do this as in this point I know it exist
+        return encode_file(image, user_input)
+    else:
+        text_input_binary = convert_text(user_input)
+        return encode_text(image, text_input_binary)
+
+
 def decode_text():
     pass
 
@@ -125,7 +141,7 @@ def is_image_big_enough(file_size: int, image_size: int) -> bool:
     :return: bool
     """
     if file_size > image_size:
-        print('Text is too big')
+        print('The file/text to encode is too big. \n')
         return False
 
     return True
@@ -154,6 +170,28 @@ def validate_and_get_size(u_input: str) -> int:
     return size
 
 
+def resize_image(init_image: Image, resize_r: float) -> Image:
+    """
+    Function that resizes image
+    :param init_image: image to encode in
+    :param resize_r: resize ration
+    :return: Image
+    """
+    return init_image.resize(
+        (math.ceil(init_image.width * resize_r), math.ceil(init_image.height * resize_r)),
+        Image.ANTIALIAS
+    )
+
+
+def is_file(inp: str) -> bool:
+    """
+    Function that checks is file condition
+    :param inp: user input string
+    :return:  bool
+    """
+    return '.jpg' in inp or '.jpeg' in inp or '.txt' in inp
+
+
 def main():
     # get user input
     user_input = input('What do you want to encode?\n')
@@ -174,20 +212,23 @@ def main():
     # image max bits to encode in
     # not checking png for now ( * 4 )
     max_bits = image.width * image.height * 3
+    file_output = input('What should be the output file name?(without extension)\n')
 
     # check if image is big enough to encode data in it
     if is_image_big_enough(size_in_bits, max_bits):
-        file_output = input('What should be the output file name?(without extension)\n')
-
-        if '.jpg' in user_input or '.jpeg' in user_input or '.txt' in user_input:
-            # can do this as in this point I know it exist
-            changed_image = encode_file(image, user_input)
-        else:
-            text_input_binary = convert_text(user_input)
-            changed_image = encode_text(image, text_input_binary)
+        changed_image = encode(user_input, image)
     else:
         # suggest making image bigger
-        exit(4)
+        make_bigger = input('Do you want to make image to which you are encoding bigger?\n'
+                            'yes/no\n')
+
+        if make_bigger.__eq__('yes'):
+            resize_ratio = size_in_bits / max_bits / 2
+            resized_image = resize_image(image, resize_ratio)
+
+            changed_image = encode(user_input, resized_image)
+        else:
+            exit(4)
 
     # save changed image
     changed_image.save(file_output + '.png')

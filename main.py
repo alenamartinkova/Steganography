@@ -3,7 +3,6 @@ from os.path import exists
 from os import stat
 import numpy
 import math
-import sys
 from textwrap import wrap
 
 HEADER_SIZE = 580
@@ -32,38 +31,54 @@ def encode_loop(input_image: Image, bits_data: list, header_l: list, enc_type: i
     header_l.extend(bits_data)
     data = iter(header_l)
     counter = 0
+    counter_bits = 0
 
     for x in range(input_image.width):
         for y in range(input_image.height):
-            if enc_type == 0 or (enc_type == 1 and counter % 2 == 0) or (enc_type == 2 and counter % 2 == 1):
+            if enc_type == 0 \
+                    or (enc_type == 1 and counter % 2 == 0) \
+                    or (enc_type == 2 and counter % 2 == 1) \
+                    or counter_bits < HEADER_SIZE:
                 pixels = list(input_image.getpixel((x, y)))
 
                 next_bit = next(data, None)
                 if next_bit is not None:
                     # change r
                     pixels[0] = change_bit(int(next_bit), pixels[0])
+                    counter_bits += 1
                 else:
                     input_image.putpixel((x, y), tuple(pixels))
                     break
+
+                if counter_bits == HEADER_SIZE:
+                    counter_bits += 1
+                    counter += 1
+                    continue
 
                 next_bit = next(data, None)
                 if next_bit is not None:
                     # change g
                     pixels[1] = change_bit(int(next_bit), pixels[1])
+                    counter_bits += 1
                 else:
                     input_image.putpixel((x, y), tuple(pixels))
                     break
+
+                if counter_bits == HEADER_SIZE:
+                    counter_bits += 1
+                    counter += 1
+                    continue
 
                 next_bit = next(data, None)
                 if next_bit is not None:
                     # change b
                     pixels[2] = change_bit(int(next_bit), pixels[2])
+                    counter_bits += 1
                 else:
                     input_image.putpixel((x, y), tuple(pixels))
                     break
 
                 input_image.putpixel((x, y), tuple(pixels))
-
             counter += 1
 
         if next_bit is None:
@@ -111,10 +126,10 @@ def set_header(u_input: str, enc_type: int) -> str:
         file_type = '1'  # file
         file_stats = stat(u_input)
         # get file size in bits
-        size_bits = file_stats.st_size * 8 + HEADER_SIZE
+        size_bits = file_stats.st_size * 8 + HEADER_SIZE if enc_type == 0 else file_stats.st_size * 8 * 2 + HEADER_SIZE
     else:
         file_type = '0'  # text
-        size_bits = len(u_input) * 8 + HEADER_SIZE
+        size_bits = len(u_input) * 8 + HEADER_SIZE if enc_type == 0 else len(u_input) * 8 * 2 + HEADER_SIZE
 
     # max length of file name to store
     if len(u_input) > 64:
@@ -132,7 +147,7 @@ def set_header(u_input: str, enc_type: int) -> str:
     enc_start = str(bin(HEADER_SIZE + 1)).replace('b', '')
     k = 32 - len(enc_start)
     enc_start = enc_start.rjust(k + len(enc_start), '0')
-    enc_end = str(bin(size_bits)).replace('b', '') if enc_type == 0 else str(bin(size_bits * 2)).replace('b', '')
+    enc_end = str(bin(size_bits)).replace('b', '')
     k = 32 - len(enc_end)
 
     if len(enc_end) > 32:
@@ -203,8 +218,8 @@ def encode_wrapper():
 
     encryption_type = input('What type of encryption to use?\n'
                             '0. Every pixel,\n'
-                            '1. Every odd pixel,\n'
-                            '2. Every even pixel\n')
+                            '1. Every even pixel,\n'
+                            '2. Every odd pixel\n')
 
     header = set_header(encryption_data, int(encryption_type))
 
@@ -278,7 +293,7 @@ def get_header(decode_image: Image):
             break
 
     f_type = header_l[0]
-    enc_type = header_l[1:4]
+    enc_type = get_int_from_bits(header_l[1:4])
     file_name = get_string_from_bits_list(header_l[4:516])
     # always
     enc_start = HEADER_SIZE
@@ -287,10 +302,10 @@ def get_header(decode_image: Image):
     return f_type, enc_type, file_name, enc_start, enc_end
 
 
-def get_string_from_bits_list(bits_l: list) -> str:
+def get_string_from_bits_list(bits_l) -> str:
     """
     Function that returns string from bits list
-    :param bits_l: list of bits
+    :param bits_l: list of bits or string of bits
     :return: str
     """
     file_name = ''
@@ -320,48 +335,65 @@ def decode_wrapper():
         exit(2)
 
     header = get_header(image)
+    enc_type = header[1]
     enc_start = header[3]
     enc_end = header[4]
-    counter = 0
+    counter_bits = 0
+    counter_pixels = 0
     result = ''
 
     for x in range(image.width):
         for y in range(image.height):
             pixels = list(image.getpixel((x, y)))
 
-            if counter >= enc_end:
+            if counter_bits >= enc_end:
                 break
 
-            if counter >= enc_start:
+            if counter_bits >= enc_start and \
+                    (enc_type == 0 or (enc_type == 1 and counter_pixels % 2 == 0) or (
+                            enc_type == 2 and counter_pixels % 2 == 1)):
                 result += str(pixels[0] & 1)
 
-            counter += 1
+            counter_bits += 1
 
-            if counter >= enc_end:
+            if counter_bits >= enc_end:
                 break
 
-            if counter >= enc_start:
+            if counter_bits >= enc_start and \
+                    (enc_type == 0 or (enc_type == 1 and counter_pixels % 2 == 0) or (
+                            enc_type == 2 and counter_pixels % 2 == 1)):
                 result += str(pixels[1] & 1)
 
-            counter += 1
+            counter_bits += 1
 
-            if counter >= enc_end:
+            if counter_bits >= enc_end:
                 break
 
-            if counter >= enc_start:
+            if counter_bits >= enc_start and \
+                    (enc_type == 0 or (enc_type == 1 and counter_pixels % 2 == 0) or (
+                            enc_type == 2 and counter_pixels % 2 == 1)):
                 result += str(pixels[2] & 1)
 
-            counter += 1
+            counter_bits += 1
 
-            if counter >= enc_end:
+            if counter_bits >= enc_end:
                 break
-        if counter >= enc_end:
+
+            counter_pixels += 1
+
+        if counter_bits >= enc_end:
             break
 
     file_name_split = header[2].split('.')
 
     if header[0] == 0:
-        pass
+        result = wrap(result, 8)
+        text = ''
+        for i in result:
+            text += get_string_from_bits_list(i)
+
+        print('Encoded text is: ', format(text))
+        exit(2)
     else:
         result = wrap(result, 8)
         bytes_output = []

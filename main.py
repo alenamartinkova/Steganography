@@ -37,7 +37,6 @@ def encode_loop(input_image: Image, bits_data: list, header_l: list, enc_type: i
         for y in range(input_image.height):
             if enc_type == 0 \
                     or (enc_type == 1 and counter % 2 == 0) \
-                    or (enc_type == 2 and counter % 2 == 1) \
                     or counter_bits < HEADER_SIZE:
                 pixels = list(input_image.getpixel((x, y)))
 
@@ -218,8 +217,7 @@ def encode_wrapper():
 
     encryption_type = input('What type of encryption to use?\n'
                             '0. Every pixel,\n'
-                            '1. Every even pixel,\n'
-                            '2. Every odd pixel\n')
+                            '1. Every even pixel,\n')
 
     header = set_header(encryption_data, int(encryption_type))
 
@@ -350,8 +348,7 @@ def decode_wrapper():
                 break
 
             if counter_bits >= enc_start and \
-                    (enc_type == 0 or (enc_type == 1 and counter_pixels % 2 == 0) or (
-                            enc_type == 2 and counter_pixels % 2 == 1)):
+                    (enc_type == 0 or (enc_type == 1 and counter_pixels % 2 == 0)):
                 result += str(pixels[0] & 1)
 
             counter_bits += 1
@@ -360,8 +357,7 @@ def decode_wrapper():
                 break
 
             if counter_bits >= enc_start and \
-                    (enc_type == 0 or (enc_type == 1 and counter_pixels % 2 == 0) or (
-                            enc_type == 2 and counter_pixels % 2 == 1)):
+                    (enc_type == 0 or (enc_type == 1 and counter_pixels % 2 == 0)):
                 result += str(pixels[1] & 1)
 
             counter_bits += 1
@@ -370,8 +366,7 @@ def decode_wrapper():
                 break
 
             if counter_bits >= enc_start and \
-                    (enc_type == 0 or (enc_type == 1 and counter_pixels % 2 == 0) or (
-                            enc_type == 2 and counter_pixels % 2 == 1)):
+                    (enc_type == 0 or (enc_type == 1 and counter_pixels % 2 == 0)):
                 result += str(pixels[2] & 1)
 
             counter_bits += 1
